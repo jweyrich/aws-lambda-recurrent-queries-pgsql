@@ -36,4 +36,4 @@ Open up a separate tab in your console, set your Provider Credentials and stream
 
 If at any point, you no longer need your service, you can run the following command to remove the Functions, Events and Resources that were created, and ensure that you don't incur any unexpected charges.
 
-serverless remove
+	serverless remove
