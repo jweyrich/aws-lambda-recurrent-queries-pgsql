@@ -1,0 +1,16 @@
+{
+  "name": "lambda-run-pgsql-query",
+  "version": "1.0.0",
+  "description": "Connect to PgSQL, run a query, and die.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jardel Weyrich <jardel@teltecsolutions.com.br>",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^7.4.3",
+    "prompt-sync": "^4.1.6",
+    "serverless": "^1.31.0"
+  }
+}
