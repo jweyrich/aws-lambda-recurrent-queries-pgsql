@@ -1,8 +1,9 @@
 {
-  "name": "lambda-run-pgsql-query",
+  "name": "aws-lambda-recurrent-queries-pgsql",
   "version": "1.0.0",
   "description": "Connect to PgSQL, run a query, and die.",
   "main": "index.js",
+  "repository": "https://github.com/jweyrich/aws-lambda-recurrent-queries-pgsql",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
