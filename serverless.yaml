@@ -19,7 +19,7 @@ service: recurrent-queries # NOTE: update this with your service name
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs10.x
   profile: CHANGE_ME
   memorySize: 128
   region: ${opt:region, 'us-east-1'}
