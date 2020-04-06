@@ -10,8 +10,8 @@
   "author": "Jardel Weyrich <jardel@teltecsolutions.com.br>",
   "license": "MIT",
   "dependencies": {
-    "pg": "^7.4.3",
-    "prompt-sync": "^4.1.6",
-    "serverless": "^1.34.1"
+    "pg": "^7.18.2",
+    "prompt-sync": "^4.2.0",
+    "serverless": "^1.67.0"
   }
 }
