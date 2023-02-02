@@ -12,6 +12,6 @@
   "dependencies": {
     "pg": "^7.18.2",
     "prompt-sync": "^4.2.0",
-    "serverless": "^1.83.3"
+    "serverless": "^3.27.0"
   }
 }
