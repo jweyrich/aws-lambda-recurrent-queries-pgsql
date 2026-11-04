@@ -14,7 +14,6 @@
 */
 
 const { Client } = require('pg')
-const util = require('util')
 
 const config = {
   endpoint: {
@@ -38,19 +37,14 @@ async function run_query (query_string) {
     database: config.db_name,
     user: config.auth.user,
     password: config.auth.password,
+    // Set the schema via the search_path startup parameter.
+    // REF: https://github.com/brianc/node-postgres/issues/1123
+    options: config.db_schema
+      ? `-c search_path=${config.db_schema}`
+      : undefined,
   })
 
   await client.connect()
-
-  // Workaround because node-postgres==7.4.3
-  // doesn't support configuring the DB schema.
-  // REF: https://github.com/brianc/node-postgres/issues/1123
-  if (config.db_schema) {
-    query_string = util.format(
-      "SET SCHEMA '%s'; %s",
-      config.db_schema,
-      query_string)
-  }
 
   const result = await client.query(query_string)
   await client.end()

@@ -1,8 +1,8 @@
 
 ## Pre-requisites
 
-1. Node.js v10.x or later.
-1. Serverless CLI v1.9.0 or later. You can run npm `install -g serverless` to install it.
+1. Node.js v20.x or later.
+1. Serverless Framework v3. It is installed as a dev dependency by `npm install` (run it with `npx serverless`).
 1. An AWS account. If you don't already have one, you can sign up for a free trial that includes 1 million free Lambda requests per month.
 1. Set-up your [Provider Credentials](https://serverless.com/framework/docs/providers/aws/guide/credentials).
 
