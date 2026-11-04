@@ -58,12 +58,12 @@ package:
   # still leaves devDependencies out of node_modules.
   patterns:
     - "!**"
-    - index.js
+    - src/**
     - node_modules/**
 
 functions:
   recurrent_select_now:
-    handler: index.handler
+    handler: src/index.handler
     events:
       - schedule: rate(1 hour)
     environment:

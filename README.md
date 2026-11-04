@@ -71,7 +71,7 @@ Also replace `profile: CHANGE_ME` in `serverless.yaml` with your AWS CLI profile
 
 Run the query once from your shell and print the resulting rows:
 
-	DB_HOST=localhost DB_NAME=database DB_USER=user DB_QUERY="SELECT NOW()" node index.js
+	DB_HOST=localhost DB_NAME=database DB_USER=user DB_QUERY="SELECT NOW()" node src/index.js
 
 ## Test
 

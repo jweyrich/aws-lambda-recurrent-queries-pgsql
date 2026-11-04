@@ -17,7 +17,7 @@ const db = {
   password: process.env.DB_PASSWORD || 'secret',
 }
 
-// index.js reads its configuration from the environment at load time,
+// src/index.js reads its configuration from the environment at load time,
 // so each test loads a fresh copy with the env it needs.
 function loadHandler (env) {
   const saved = { ...process.env }
@@ -31,8 +31,8 @@ function loadHandler (env) {
     ...env,
   })
   try {
-    delete require.cache[require.resolve('../index.js')]
-    return require('../index.js').handler
+    delete require.cache[require.resolve('../src/index.js')]
+    return require('../src/index.js').handler
   } finally {
     process.env = saved
   }

@@ -11,7 +11,7 @@
   DB_PASSWORD="password" \
   DB_SSL="disable" \
   DB_QUERY="SELECT NOW()" \
-  node index.js
+  node src/index.js
 */
 
 const { Client } = require('pg')
@@ -157,7 +157,7 @@ exports.handler = async () => {
   }
 }
 
-// Only auto-run when executed directly (`node index.js`), not when
+// Only auto-run when executed directly (`node src/index.js`), not when
 // loaded as a module by Lambda, `serverless invoke local`, or tests.
 if (require.main === module) {
   exports.interactive_handler()
