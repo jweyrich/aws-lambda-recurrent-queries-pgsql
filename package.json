@@ -10,6 +10,7 @@
   "author": "Jardel Weyrich <jweyrich@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-ssm": "~3.1154.0",
     "pg": "^8.23.1",
     "prompt-sync": "^4.2.0"
   },

@@ -63,17 +63,62 @@ const config = {
   connect_timeout_ms: timeout_ms('DB_CONNECT_TIMEOUT_MS', 5000),
   // Enforced by the server (statement_timeout), which also stops the work there.
   query_timeout_ms: timeout_ms('DB_QUERY_TIMEOUT_MS', 0),
+  // Optional SSM parameter holding the credentials as JSON (see load_secret).
+  secret_parameter: process.env.DB_SECRET_PARAMETER || undefined,
   query: process.env.DB_QUERY || 'SELECT NOW()',
 }
 
-async function run_query (query_string) {
-  //console.log(config)
-  const client = new Client({
+// Reads the credentials from an SSM parameter (normally a SecureString) whose
+// value is a JSON object using the field names of AWS database secrets:
+//   { "host", "port", "dbname", "username", "password" }
+// All fields are optional; missing ones fall back to the DB_* variables.
+// A Secrets Manager secret (e.g. one managed by RDS) works too, through
+// SSM's "/aws/reference/secretsmanager/<secret name>" parameter path.
+//
+// Fetched on every invocation rather than cached, so a rotated password is
+// picked up immediately; at one run an hour, the extra call is negligible.
+async function load_secret (name) {
+  const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm')
+  const ssm = new SSMClient({})
+  const { Parameter } = await ssm.send(
+    new GetParameterCommand({ Name: name, WithDecryption: true }))
+
+  // Never include the value in errors: it would end up in the logs.
+  let secret
+  try {
+    secret = JSON.parse(Parameter.Value)
+  } catch {
+    throw new Error(`SSM parameter "${name}" is not valid JSON`)
+  }
+  if (secret === null || typeof secret !== 'object' || Array.isArray(secret)) {
+    throw new Error(`SSM parameter "${name}" must contain a JSON object`)
+  }
+  return secret
+}
+
+async function connection_settings () {
+  const settings = {
     host: config.endpoint.host,
     port: config.endpoint.port,
     database: config.db_name,
     user: config.auth.user,
     password: config.auth.password,
+  }
+  if (!config.secret_parameter) return settings
+
+  const secret = await load_secret(config.secret_parameter)
+  return {
+    host: secret.host ?? settings.host,
+    port: secret.port ?? settings.port,
+    database: secret.dbname ?? settings.database,
+    user: secret.username ?? settings.user,
+    password: secret.password ?? settings.password,
+  }
+}
+
+async function run_query (query_string) {
+  const client = new Client({
+    ...await connection_settings(),
     ssl: config.ssl,
     connectionTimeoutMillis: config.connect_timeout_ms,
     statement_timeout: config.query_timeout_ms || undefined,
@@ -96,10 +141,10 @@ async function run_query (query_string) {
 }
 
 exports.interactive_handler = async () => {
-  if (!config.auth.password) {
-    const prompt = require('prompt-sync')();
-    config.auth.password = prompt('Password: ', {echo: ''})
-  } 
+  if (!config.auth.password && !config.secret_parameter) {
+    const prompt = require('prompt-sync')()
+    config.auth.password = prompt('Password: ', { echo: '' })
+  }
   const result = await run_query(config.query)
   console.log(result)
 }

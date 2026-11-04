@@ -22,13 +22,40 @@ The function is configured through environment variables, set in `serverless.yam
 | `DB_NAME`               |                | Database name                                        |
 | `DB_USER`               |                | Database user                                        |
 | `DB_PASSWORD`           |                | Database password (prompted for when run locally)    |
+| `DB_SECRET_PARAMETER`   |                | SSM parameter with the credentials (see below)       |
 | `DB_SCHEMA`             |                | Optional schema, used as the `search_path`           |
 | `DB_SSL`                | `disable`      | `disable`, `require` or `verify-full` (see below)    |
 | `DB_CONNECT_TIMEOUT_MS` | `5000`         | Give up connecting after this long (`0` = no limit)  |
 | `DB_QUERY_TIMEOUT_MS`   | `0` (no limit) | Server cancels the query after this long             |
 | `DB_QUERY`              | `SELECT NOW()` | The query to run                                     |
 
+### Credentials
+
+When deployed, the function reads the database credentials from an SSM Parameter Store parameter each time it runs, so the password never appears in `serverless.yaml` or in the Lambda configuration. `serverless.yaml` sets `DB_SECRET_PARAMETER` to `/recurrent-queries/<stage>/db` and allows the function to read only that parameter.
+
+The parameter holds a JSON object with the same field names AWS uses for database secrets. Every field is optional; any that is missing falls back to the matching `DB_*` variable, and any that is present takes precedence over it.
+
+```json
+{ "host": "mydb.xxxx.us-east-1.rds.amazonaws.com", "port": 5432, "dbname": "app", "username": "app", "password": "..." }
+```
+
+Create it, as a `SecureString`, before the first deploy:
+
+	aws ssm put-parameter --type SecureString \
+	  --name /recurrent-queries/dev/db \
+	  --value file://db-credentials.json
+
+Then delete `db-credentials.json`. Passing the JSON with `--value '{...}'` also works, but leaves the password in your shell history.
+
+To use a Secrets Manager secret instead, such as the one RDS creates when it manages the master password, set `custom.dbSecretParameter` in `serverless.yaml` to `/aws/reference/secretsmanager/<secret name>`, and add `secretsmanager:GetSecretValue` on that secret to the IAM statements. RDS-managed secrets only hold `username` and `password`, so also set `DB_HOST` and `DB_NAME`. The function fetches the secret on every run, so it picks up rotated passwords without a redeploy.
+
+If the parameter is encrypted with your own KMS key, rather than the default `aws/ssm` key, the function also needs `kms:Decrypt` on that key.
+
+### Timeouts
+
 `serverless.yaml` sets `DB_QUERY_TIMEOUT_MS` to `4000`, so that connecting (up to 5 s) plus the query fits within the function's 10 s `timeout`. If you raise one, raise the other with it; otherwise Lambda kills the function before the database's error comes back.
+
+### Encryption
 
 `DB_SSL` follows PostgreSQL's `sslmode` names:
 

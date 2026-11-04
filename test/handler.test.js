@@ -5,6 +5,7 @@
 
 const { test, before, after } = require('node:test')
 const assert = require('node:assert/strict')
+const http = require('node:http')
 const net = require('node:net')
 const { Client } = require('pg')
 
@@ -195,4 +196,131 @@ test('cancels a query that runs longer than DB_QUERY_TIMEOUT_MS', async () => {
 
   await assert.rejects(invoke(handler), /statement timeout/)
   assert.ok(Date.now() - started < 2000, 'should fail soon after the timeout')
+})
+
+// --- Credentials from an SSM parameter --------------------------------------
+
+// A minimal stand-in for the SSM API, serving GetParameter from `parameters`.
+// The real AWS SDK is pointed at it through AWS_ENDPOINT_URL_SSM.
+async function fakeSsm (parameters) {
+  const requests = []
+  const server = http.createServer((req, res) => {
+    let body = ''
+    req.on('data', (chunk) => { body += chunk })
+    req.on('end', () => {
+      const input = JSON.parse(body)
+      requests.push({ target: req.headers['x-amz-target'], ...input })
+      res.setHeader('content-type', 'application/x-amz-json-1.1')
+      if (input.Name in parameters) {
+        res.end(JSON.stringify({
+          Parameter: { Name: input.Name, Type: 'SecureString', Value: parameters[input.Name] },
+        }))
+      } else {
+        res.statusCode = 400
+        res.end(JSON.stringify({ __type: 'ParameterNotFound', message: '' }))
+      }
+    })
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  return {
+    requests,
+    endpoint: `http://127.0.0.1:${server.address().port}`,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  }
+}
+
+// Runs `fn` with AWS SDK settings that reach the fake SSM and nothing else.
+async function withSsm (parameters, fn) {
+  const ssm = await fakeSsm(parameters)
+  const saved = { ...process.env }
+  Object.assign(process.env, {
+    AWS_REGION: 'us-east-1',
+    AWS_ACCESS_KEY_ID: 'test',
+    AWS_SECRET_ACCESS_KEY: 'test',
+    AWS_ENDPOINT_URL_SSM: ssm.endpoint,
+    AWS_EC2_METADATA_DISABLED: 'true',
+  })
+  try {
+    return await fn(ssm)
+  } finally {
+    process.env = saved
+    await ssm.close()
+  }
+}
+
+const WHO_AM_I = 'SELECT current_user AS "user", current_database() AS database'
+
+test('reads all credentials from DB_SECRET_PARAMETER', async () => {
+  const secret = JSON.stringify({
+    host: db.host, port: db.port, dbname: db.database,
+    username: db.user, password: db.password,
+  })
+  await withSsm({ '/app/db': secret }, async (ssm) => {
+    // Every DB_* value is wrong, so this only works if the secret is used.
+    const handler = loadHandler({
+      DB_SECRET_PARAMETER: '/app/db',
+      DB_HOST: 'invalid.invalid', DB_PORT: '1', DB_NAME: 'wrong',
+      DB_USER: 'wrong', DB_PASSWORD: 'wrong',
+      DB_QUERY: WHO_AM_I,
+    })
+    const res = await invoke(handler)
+
+    assert.deepEqual(JSON.parse(res.body), [{ user: db.user, database: db.database }])
+    assert.deepEqual(ssm.requests, [{
+      target: 'AmazonSSM.GetParameter', Name: '/app/db', WithDecryption: true,
+    }])
+  })
+})
+
+test('falls back to DB_* variables for fields the secret lacks', async () => {
+  // Like an RDS-managed secret, which only holds the username and password.
+  const secret = JSON.stringify({ username: db.user, password: db.password })
+  await withSsm({ '/app/db': secret }, async () => {
+    const handler = loadHandler({
+      DB_SECRET_PARAMETER: '/app/db',
+      DB_USER: 'wrong', DB_PASSWORD: 'wrong',
+      DB_QUERY: WHO_AM_I,
+    })
+    const res = await invoke(handler)
+
+    assert.deepEqual(JSON.parse(res.body), [{ user: db.user, database: db.database }])
+  })
+})
+
+test('prefers the secret over DB_* variables', async () => {
+  const secret = JSON.stringify({ password: 'not-the-password' })
+  await withSsm({ '/app/db': secret }, async () => {
+    // DB_PASSWORD is correct, but the secret's value must win.
+    const handler = loadHandler({ DB_SECRET_PARAMETER: '/app/db' })
+
+    await assert.rejects(invoke(handler), /password authentication failed/)
+  })
+})
+
+test('reports a parameter that is not JSON, without its value', async () => {
+  await withSsm({ '/app/db': 'hunter2' }, async () => {
+    const handler = loadHandler({ DB_SECRET_PARAMETER: '/app/db' })
+
+    await assert.rejects(invoke(handler), (err) => {
+      assert.match(err.message, /SSM parameter "\/app\/db" is not valid JSON/)
+      assert.doesNotMatch(err.message, /hunter2/)
+      return true
+    })
+  })
+})
+
+test('reports a parameter that is JSON but not an object', async () => {
+  await withSsm({ '/app/db': '["a", "b"]' }, async () => {
+    const handler = loadHandler({ DB_SECRET_PARAMETER: '/app/db' })
+
+    await assert.rejects(invoke(handler), /must contain a JSON object/)
+  })
+})
+
+test('reports a missing parameter', async () => {
+  await withSsm({}, async () => {
+    const handler = loadHandler({ DB_SECRET_PARAMETER: '/app/missing' })
+
+    await assert.rejects(invoke(handler), { name: 'ParameterNotFound' })
+  })
 })

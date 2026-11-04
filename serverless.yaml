@@ -4,6 +4,13 @@ service: recurrent-queries
 
 frameworkVersion: "3"
 
+custom:
+  # SSM parameter (SecureString) holding the database credentials as JSON:
+  #   {"host": "...", "port": 5432, "dbname": "...", "username": "...", "password": "..."}
+  # It is read by the function at runtime, so the password never appears in the
+  # Lambda configuration. Create it before deploying; see the README.
+  dbSecretParameter: /recurrent-queries/${sls:stage}/db
+
 provider:
   name: aws
   runtime: nodejs20.x
@@ -14,10 +21,26 @@ provider:
   stackName: recurrent-queries # Custom name for the CloudFormation stack
   timeout: 10 # Keep above DB_CONNECT_TIMEOUT_MS + DB_QUERY_TIMEOUT_MS
 
+  iam:
+    role:
+      statements:
+        # Read the credentials parameter, and nothing else. SecureStrings
+        # encrypted with the default aws/ssm key need no extra KMS permission.
+        - Effect: Allow
+          Action: ssm:GetParameter
+          # Region and account are filled in by CloudFormation at deploy time.
+          Resource:
+            Fn::Join:
+              - ""
+              - - "arn:aws:ssm:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":parameter${self:custom.dbSecretParameter}"
+
   # Shared by all functions; function-level values override these.
   environment:
-    DB_HOST: REPLACE_ME
-    DB_PORT: 5432
+    DB_SECRET_PARAMETER: ${self:custom.dbSecretParameter}
     # Encrypt the connection and verify the server certificate.
     DB_SSL: verify-full
     # Node.js 20+ Lambda runtimes don't trust the Amazon RDS CAs by default;
@@ -27,6 +50,16 @@ provider:
     # Fail with a clear error well before the 10 s Lambda timeout.
     DB_CONNECT_TIMEOUT_MS: 5000
     DB_QUERY_TIMEOUT_MS: 4000
+    # DB_HOST, DB_PORT, DB_NAME, DB_USER: only for fields the parameter lacks.
+
+package:
+  # Ship only the code and its runtime dependencies. Patterns apply in order:
+  # exclude everything, then add back what the function needs. Serverless
+  # still leaves devDependencies out of node_modules.
+  patterns:
+    - "!**"
+    - index.js
+    - node_modules/**
 
 functions:
   recurrent_select_now:
@@ -34,8 +67,5 @@ functions:
     events:
       - schedule: rate(1 hour)
     environment:
-      DB_NAME: REPLACE_ME
-      DB_USER: REPLACE_ME
-      DB_PASSWORD: "REPLACE_ME"
       DB_QUERY: "SELECT NOW()"
       # DB_SCHEMA: public # Optional: sets search_path for the query
