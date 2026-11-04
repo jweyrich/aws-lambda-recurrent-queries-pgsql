@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Jardel Weyrich <jardel@teltecsolutions.com.br>",
+  "author": "Jardel Weyrich <jweyrich@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "pg": "^8.23.1",
