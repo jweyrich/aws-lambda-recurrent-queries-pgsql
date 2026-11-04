@@ -15,7 +15,7 @@
     "prompt-sync": "^4.2.0"
   },
   "devDependencies": {
-    "serverless": "^3.40.0"
+    "serverless": "^4.46.0"
   },
   "engines": {
     "node": ">=20"
