@@ -8,7 +8,7 @@
   DB_NAME="database" \
   DB_SCHEMA="current" \
   DB_USER="user" \
-  DB_PASSWORD="password"
+  DB_PASSWORD="password" \
   DB_QUERY="SELECT NOW()" \
   node index.js
 */

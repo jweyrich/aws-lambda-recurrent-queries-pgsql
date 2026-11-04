@@ -1,20 +1,7 @@
-# Welcome to Serverless!
-#
-# This file is the main config file for your service.
-# It's very minimal at this point and uses default values.
-# You can always add more config options for more control.
-# We've included some commented out config examples here.
-# Just uncomment any of them to get that config option.
-#
-# For full config options, check the docs:
-#    docs.serverless.com
-#
-# Happy Coding!
+# Serverless Framework config. Docs: https://www.serverless.com/framework/docs/providers/aws/guide/serverless.yml
 
-service: recurrent-queries # NOTE: update this with your service name
+service: recurrent-queries
 
-# You can pin your service to only deploy with a specific Serverless version
-# Check out our docs for more details
 frameworkVersion: "3"
 
 provider:
@@ -24,30 +11,10 @@ provider:
   memorySize: 128
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
-  stackName: recurrent-queries # Use a custom name for the CloudFormation stack
+  stackName: recurrent-queries # Custom name for the CloudFormation stack
   timeout: 10
 
-# you can overwrite defaults here
-#  stage: dev
-#  region: us-east-1
-
-# you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:ListBucket"
-#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:PutObject"
-#      Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "ServerlessDeploymentBucket"
-#            - "/*"
-
-# Service wide environment variables
+  # Shared by all functions; function-level values override these.
   environment:
     DB_HOST: REPLACE_ME
     DB_PORT: 5432
@@ -57,12 +24,9 @@ functions:
     handler: index.handler
     events:
       - schedule: rate(1 hour)
-#      - cloudwatchLog: '/aws/lambda/select_now'
     environment:
-      DB_HOST: REPLACE_ME
       DB_NAME: REPLACE_ME
       DB_USER: REPLACE_ME
       DB_PASSWORD: "REPLACE_ME"
       DB_QUERY: "SELECT NOW()"
- 
-
+      # DB_SCHEMA: public # Optional: sets search_path for the query
