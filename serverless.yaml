@@ -12,7 +12,7 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   stackName: recurrent-queries # Custom name for the CloudFormation stack
-  timeout: 10
+  timeout: 10 # Keep above DB_CONNECT_TIMEOUT_MS + DB_QUERY_TIMEOUT_MS
 
   # Shared by all functions; function-level values override these.
   environment:
@@ -24,6 +24,9 @@ provider:
     # this AWS-provided bundle contains them.
     # REF: https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html#nodejs-certificate-loading
     NODE_EXTRA_CA_CERTS: /var/runtime/ca-cert.pem
+    # Fail with a clear error well before the 10 s Lambda timeout.
+    DB_CONNECT_TIMEOUT_MS: 5000
+    DB_QUERY_TIMEOUT_MS: 4000
 
 functions:
   recurrent_select_now:

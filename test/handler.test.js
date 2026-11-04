@@ -5,6 +5,7 @@
 
 const { test, before, after } = require('node:test')
 const assert = require('node:assert/strict')
+const net = require('node:net')
 const { Client } = require('pg')
 
 const db = {
@@ -146,4 +147,53 @@ sslTest('DB_SSL=verify-full refuses a certificate for another host', async () =>
   })
 
   await assert.rejects(invoke(handler), /does not match certificate/)
+})
+
+test('rejects invalid timeout values at load time', () => {
+  assert.throws(
+    () => loadHandler({ DB_CONNECT_TIMEOUT_MS: '5s' }),
+    /Invalid DB_CONNECT_TIMEOUT_MS "5s"/)
+  assert.throws(
+    () => loadHandler({ DB_QUERY_TIMEOUT_MS: '-1' }),
+    /Invalid DB_QUERY_TIMEOUT_MS "-1"/)
+})
+
+test('gives up connecting after DB_CONNECT_TIMEOUT_MS', async () => {
+  // A server that accepts TCP connections but never answers, like a
+  // firewalled or overloaded database.
+  const sockets = new Set()
+  const server = net.createServer((socket) => sockets.add(socket))
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const handler = loadHandler({
+      DB_HOST: '127.0.0.1',
+      DB_PORT: String(server.address().port),
+      DB_CONNECT_TIMEOUT_MS: '200',
+    })
+    const started = Date.now()
+
+    await assert.rejects(invoke(handler), /timeout/i)
+    assert.ok(Date.now() - started < 2000, 'should fail soon after the timeout')
+  } finally {
+    for (const socket of sockets) socket.destroy()
+    await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('sets no query time limit by default', async () => {
+  const handler = loadHandler({ DB_QUERY: 'SHOW statement_timeout' })
+  const res = await invoke(handler)
+
+  assert.deepEqual(JSON.parse(res.body), [{ statement_timeout: '0' }])
+})
+
+test('cancels a query that runs longer than DB_QUERY_TIMEOUT_MS', async () => {
+  const handler = loadHandler({
+    DB_QUERY: 'SELECT pg_sleep(5)',
+    DB_QUERY_TIMEOUT_MS: '200',
+  })
+  const started = Date.now()
+
+  await assert.rejects(invoke(handler), /statement timeout/)
+  assert.ok(Date.now() - started < 2000, 'should fail soon after the timeout')
 })

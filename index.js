@@ -35,6 +35,18 @@ function ssl_options (mode = 'disable') {
   }
 }
 
+// Parses a timeout in milliseconds; 0 means no limit.
+function timeout_ms (name, fallback) {
+  const raw = process.env[name]
+  if (raw === undefined || raw === '') return fallback
+  const ms = Number(raw)
+  if (!Number.isInteger(ms) || ms < 0) {
+    throw new Error(
+      `Invalid ${name} "${raw}": expected a whole number of milliseconds (0 = no limit)`)
+  }
+  return ms
+}
+
 const config = {
   endpoint: {
     host: process.env.DB_HOST || 'localhost',
@@ -47,6 +59,10 @@ const config = {
   db_name: process.env.DB_NAME,
   db_schema: process.env.DB_SCHEMA,
   ssl: ssl_options(process.env.DB_SSL || undefined),
+  // Without a limit, pg waits forever for an unreachable server.
+  connect_timeout_ms: timeout_ms('DB_CONNECT_TIMEOUT_MS', 5000),
+  // Enforced by the server (statement_timeout), which also stops the work there.
+  query_timeout_ms: timeout_ms('DB_QUERY_TIMEOUT_MS', 0),
   query: process.env.DB_QUERY || 'SELECT NOW()',
 }
 
@@ -59,6 +75,8 @@ async function run_query (query_string) {
     user: config.auth.user,
     password: config.auth.password,
     ssl: config.ssl,
+    connectionTimeoutMillis: config.connect_timeout_ms,
+    statement_timeout: config.query_timeout_ms || undefined,
     // Set the schema via the search_path startup parameter.
     // REF: https://github.com/brianc/node-postgres/issues/1123
     options: config.db_schema

@@ -15,16 +15,20 @@ It is triggered on a schedule (hourly by default, see `serverless.yaml`).
 
 The function is configured through environment variables, set in `serverless.yaml`:
 
-| Variable      | Default        | Description                                          |
-|---------------|----------------|------------------------------------------------------|
-| `DB_HOST`     | `localhost`    | PostgreSQL host                                      |
-| `DB_PORT`     | `5432`         | PostgreSQL port                                      |
-| `DB_NAME`     |                | Database name                                        |
-| `DB_USER`     |                | Database user                                        |
-| `DB_PASSWORD` |                | Database password (prompted for when run locally)    |
-| `DB_SCHEMA`   |                | Optional schema, used as the `search_path`           |
-| `DB_SSL`      | `disable`      | `disable`, `require` or `verify-full` (see below)    |
-| `DB_QUERY`    | `SELECT NOW()` | The query to run                                     |
+| Variable                | Default        | Description                                          |
+|-------------------------|----------------|------------------------------------------------------|
+| `DB_HOST`               | `localhost`    | PostgreSQL host                                      |
+| `DB_PORT`               | `5432`         | PostgreSQL port                                      |
+| `DB_NAME`               |                | Database name                                        |
+| `DB_USER`               |                | Database user                                        |
+| `DB_PASSWORD`           |                | Database password (prompted for when run locally)    |
+| `DB_SCHEMA`             |                | Optional schema, used as the `search_path`           |
+| `DB_SSL`                | `disable`      | `disable`, `require` or `verify-full` (see below)    |
+| `DB_CONNECT_TIMEOUT_MS` | `5000`         | Give up connecting after this long (`0` = no limit)  |
+| `DB_QUERY_TIMEOUT_MS`   | `0` (no limit) | Server cancels the query after this long             |
+| `DB_QUERY`              | `SELECT NOW()` | The query to run                                     |
+
+`serverless.yaml` sets `DB_QUERY_TIMEOUT_MS` to `4000`, so that connecting (up to 5 s) plus the query fits within the function's 10 s `timeout`. If you raise one, raise the other with it; otherwise Lambda kills the function before the database's error comes back.
 
 `DB_SSL` follows PostgreSQL's `sslmode` names:
 
