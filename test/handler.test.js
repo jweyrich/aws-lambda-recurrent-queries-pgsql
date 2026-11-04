@@ -37,11 +37,10 @@ function loadHandler (env) {
   }
 }
 
+// Calls the handler as Lambda does for an async handler: with an event and
+// a context, and no callback, so it must return (or throw) the result.
 function invoke (handler) {
-  return new Promise((resolve, reject) => {
-    handler({}, {}, (err, res) => (err ? reject(err) : resolve(res)))
-      .catch(reject)
-  })
+  return handler({}, {})
 }
 
 before(async () => {

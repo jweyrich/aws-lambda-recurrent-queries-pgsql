@@ -104,13 +104,12 @@ exports.interactive_handler = async () => {
   console.log(result)
 }
 
-exports.handler = async (event, context, callback) => {
-    const result = await run_query(config.query)
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify(result)
-    };
-    callback(null, response)
+exports.handler = async () => {
+  const result = await run_query(config.query)
+  return {
+    statusCode: 200,
+    body: JSON.stringify(result),
+  }
 }
 
 // Only auto-run when executed directly (`node index.js`), not when
