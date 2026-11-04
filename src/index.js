@@ -1,18 +1,6 @@
 'use strict'
 
-/*
-  Example to run it from shell:
-
-  DB_HOST="localhost" \
-  DB_PORT=5432 \
-  DB_NAME="database" \
-  DB_SCHEMA="current" \
-  DB_USER="user" \
-  DB_PASSWORD="password" \
-  DB_SSL="disable" \
-  DB_QUERY="SELECT NOW()" \
-  node src/index.js
-*/
+// Configuration and how to run it locally: see README.md.
 
 const { Client } = require('pg')
 
