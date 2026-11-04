@@ -63,4 +63,5 @@ if [[ -z "${DB_HOST:-}" ]]; then
   export TEST_SSL=1
 fi
 
-node --test --test-timeout=30000 "test/**/*.test.js"
+# The shell expands the pattern: Node 20 does not support globs in --test.
+node --test --test-timeout=30000 test/*.test.js
