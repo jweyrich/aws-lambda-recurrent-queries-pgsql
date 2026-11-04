@@ -9,11 +9,31 @@
   DB_SCHEMA="current" \
   DB_USER="user" \
   DB_PASSWORD="password" \
+  DB_SSL="disable" \
   DB_QUERY="SELECT NOW()" \
   node index.js
 */
 
 const { Client } = require('pg')
+
+// DB_SSL mirrors libpq's sslmode names:
+//   disable     - no TLS (default)
+//   require     - TLS, but the server certificate is not verified
+//   verify-full - TLS, verifying the certificate chain and hostname
+//                 (trusted CAs come from Node's store plus NODE_EXTRA_CA_CERTS)
+function ssl_options (mode = 'disable') {
+  switch (mode) {
+    case 'disable':
+      return false
+    case 'require':
+      return { rejectUnauthorized: false }
+    case 'verify-full':
+      return { rejectUnauthorized: true }
+    default:
+      throw new Error(
+        `Invalid DB_SSL "${mode}": expected disable, require or verify-full`)
+  }
+}
 
 const config = {
   endpoint: {
@@ -26,6 +46,7 @@ const config = {
   },
   db_name: process.env.DB_NAME,
   db_schema: process.env.DB_SCHEMA,
+  ssl: ssl_options(process.env.DB_SSL || undefined),
   query: process.env.DB_QUERY || 'SELECT NOW()',
 }
 
@@ -37,6 +58,7 @@ async function run_query (query_string) {
     database: config.db_name,
     user: config.auth.user,
     password: config.auth.password,
+    ssl: config.ssl,
     // Set the schema via the search_path startup parameter.
     // REF: https://github.com/brianc/node-postgres/issues/1123
     options: config.db_schema

@@ -23,7 +23,16 @@ The function is configured through environment variables, set in `serverless.yam
 | `DB_USER`     |                | Database user                                        |
 | `DB_PASSWORD` |                | Database password (prompted for when run locally)    |
 | `DB_SCHEMA`   |                | Optional schema, used as the `search_path`           |
+| `DB_SSL`      | `disable`      | `disable`, `require` or `verify-full` (see below)    |
 | `DB_QUERY`    | `SELECT NOW()` | The query to run                                     |
+
+`DB_SSL` follows PostgreSQL's `sslmode` names:
+
+- `disable`: no encryption. The default, for local databases.
+- `require`: encrypted, but the server certificate is not checked.
+- `verify-full`: encrypted, and the server certificate must be signed by a trusted CA and match `DB_HOST`.
+
+`serverless.yaml` sets `verify-full`, which Amazon RDS for PostgreSQL 15 and later needs, since it rejects unencrypted connections by default. Node.js 20 and later Lambda runtimes don't trust the RDS certificate authorities by default, so `serverless.yaml` also sets `NODE_EXTRA_CA_CERTS=/var/runtime/ca-cert.pem`, the bundle AWS provides for that. For a database outside RDS, point `NODE_EXTRA_CA_CERTS` at the CA certificate that signed its server certificate.
 
 Also replace `profile: CHANGE_ME` in `serverless.yaml` with your AWS CLI profile.
 
@@ -39,7 +48,7 @@ Runs the integration tests against a throwaway PostgreSQL container:
 
 	npm test
 
-To test against an existing database instead, set `DB_HOST` (plus `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` as needed) before running it.
+The database has SSL enabled, with a certificate from a throwaway CA, so the `DB_SSL` modes are tested too. To test against an existing database instead, set `DB_HOST` (plus `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` as needed) before running it; the SSL tests are then skipped.
 
 ## Deploy, invoke and diagnose
 

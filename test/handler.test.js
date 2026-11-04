@@ -25,6 +25,7 @@ function loadHandler (env) {
     DB_NAME: db.database,
     DB_USER: db.user,
     DB_PASSWORD: db.password,
+    DB_SSL: '',
     ...env,
   })
   try {
@@ -92,4 +93,57 @@ test('propagates query errors', async () => {
   const handler = loadHandler({ DB_QUERY: 'SELECT * FROM no_such_table', DB_SCHEMA: '' })
 
   await assert.rejects(invoke(handler), /no_such_table/)
+})
+
+test('rejects an unknown DB_SSL value at load time', () => {
+  assert.throws(() => loadHandler({ DB_SSL: 'yes' }), /Invalid DB_SSL "yes"/)
+})
+
+// These need the SSL-enabled server and test CA set up by scripts/test.sh:
+// its certificate is valid for "localhost" only, and the CA is trusted
+// through NODE_EXTRA_CA_CERTS.
+const sslTest = (name, fn) => test(name, {
+  skip: !process.env.TEST_SSL && 'needs the SSL-enabled database from scripts/test.sh',
+}, fn)
+
+// Asks the server whether this very connection is encrypted.
+const SSL_QUERY = 'SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()'
+
+sslTest('DB_SSL=disable connects without TLS', async () => {
+  const handler = loadHandler({ DB_SSL: 'disable', DB_QUERY: SSL_QUERY })
+  const res = await invoke(handler)
+
+  assert.deepEqual(JSON.parse(res.body), [{ ssl: false }])
+})
+
+sslTest('DB_SSL=require connects with TLS', async () => {
+  const handler = loadHandler({ DB_SSL: 'require', DB_QUERY: SSL_QUERY })
+  const res = await invoke(handler)
+
+  assert.deepEqual(JSON.parse(res.body), [{ ssl: true }])
+})
+
+sslTest('DB_SSL=require does not verify the certificate', async () => {
+  // 127.0.0.1 is not in the certificate, so only verify-full would refuse it.
+  const handler = loadHandler({
+    DB_SSL: 'require', DB_HOST: '127.0.0.1', DB_QUERY: SSL_QUERY,
+  })
+  const res = await invoke(handler)
+
+  assert.deepEqual(JSON.parse(res.body), [{ ssl: true }])
+})
+
+sslTest('DB_SSL=verify-full connects when the certificate matches', async () => {
+  const handler = loadHandler({ DB_SSL: 'verify-full', DB_QUERY: SSL_QUERY })
+  const res = await invoke(handler)
+
+  assert.deepEqual(JSON.parse(res.body), [{ ssl: true }])
+})
+
+sslTest('DB_SSL=verify-full refuses a certificate for another host', async () => {
+  const handler = loadHandler({
+    DB_SSL: 'verify-full', DB_HOST: '127.0.0.1', DB_QUERY: SSL_QUERY,
+  })
+
+  await assert.rejects(invoke(handler), /does not match certificate/)
 })

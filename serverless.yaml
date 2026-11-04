@@ -18,6 +18,12 @@ provider:
   environment:
     DB_HOST: REPLACE_ME
     DB_PORT: 5432
+    # Encrypt the connection and verify the server certificate.
+    DB_SSL: verify-full
+    # Node.js 20+ Lambda runtimes don't trust the Amazon RDS CAs by default;
+    # this AWS-provided bundle contains them.
+    # REF: https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html#nodejs-certificate-loading
+    NODE_EXTRA_CA_CERTS: /var/runtime/ca-cert.pem
 
 functions:
   recurrent_select_now:
