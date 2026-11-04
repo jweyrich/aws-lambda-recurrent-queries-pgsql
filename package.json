@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": "https://github.com/jweyrich/aws-lambda-recurrent-queries-pgsql",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "scripts/test.sh"
   },
   "author": "Jardel Weyrich <jweyrich@gmail.com>",
   "license": "MIT",

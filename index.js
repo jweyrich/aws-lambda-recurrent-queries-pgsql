@@ -45,10 +45,14 @@ async function run_query (query_string) {
   })
 
   await client.connect()
-
-  const result = await client.query(query_string)
-  await client.end()
-  return result.rows
+  try {
+    const result = await client.query(query_string)
+    return result.rows
+  } finally {
+    // Always close, or a failed query leaks the connection
+    // (and keeps the Lambda/process event loop alive).
+    await client.end()
+  }
 }
 
 exports.interactive_handler = async () => {
@@ -69,6 +73,8 @@ exports.handler = async (event, context, callback) => {
     callback(null, response)
 }
 
-if (process.env.SHELL) {
+// Only auto-run when executed directly (`node index.js`), not when
+// loaded as a module by Lambda, `serverless invoke local`, or tests.
+if (require.main === module) {
   exports.interactive_handler()
 }
